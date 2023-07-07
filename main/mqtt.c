@@ -33,6 +33,9 @@
 
 #define TOPIC_LEN 512
 
+// COOLGREEN MODIFICATION //
+#define MESSAGE_LEN 512
+
 #define MQTT_NETWORK_TIMEOUT_MS (10U * 1000U)
 
 #define MQTT_TASK_STACK_SIZE (4352U)
@@ -366,6 +369,16 @@ mqtt_event_handler(esp_mqtt_event_handle_t h_event)
             gw_status_set_mqtt_connected();
             main_task_send_sig_mqtt_publish_connect();
             leds_notify_mqtt1_connected();
+
+            // COOLGREEN MODIFICATION //
+            /* Here we subscribe to all the subjects that are 
+            ruuvi/GW_MACID/commands/ (under this there will be
+            the CONTROLLER_ID) */
+            char topic[50];
+            const mac_address_str_t *mac_address = gw_cfg_get_nrf52_mac_addr();
+            sprintf(topic, "ruuvi/%s/commands/#", mac_address->str_buf);
+            LOG_INFO("Subscribing to topics: %s", topic);
+
             if (!fw_update_mark_app_valid_cancel_rollback())
             {
                 LOG_ERR("%s failed", "fw_update_mark_app_valid_cancel_rollback");
@@ -392,6 +405,28 @@ mqtt_event_handler(esp_mqtt_event_handle_t h_event)
 
         case MQTT_EVENT_DATA:
             LOG_INFO("MQTT_EVENT_DATA");
+
+            // COOLGREEN MODIFICATION //
+            /* Here we should parse the message info and send it to the controller */
+            /* So next step here is to print out the message's content */
+            char topic_event[TOPIC_LEN];
+            char message[MESSAGE_LEN];
+            memcpy(topic_event, h_event->topic, h_event->topic_len);
+            memcpy(message, h_event->data, h_event->data_len);
+            topic_event[h_event->topic_len] = '\0';
+            message[h_event->data_len] = '\0';
+
+            // Extract the controller string from the topic
+            char* controller_str = strrchr(topic_event, '/');
+            if (controller_str != NULL) {
+                controller_str++;  // Skip the '/'
+                LOG_INFO("Controller: %s", controller_str);
+            }
+
+            // Log topic and message content
+            LOG_INFO("Received message on topic: %s", topic_event);
+            LOG_INFO("Message content: %s", message);
+
             break;
 
         case MQTT_EVENT_ERROR:
