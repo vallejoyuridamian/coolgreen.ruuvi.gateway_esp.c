@@ -23,6 +23,10 @@
 #include "esp_tls.h"
 #include "snprintf_with_esp_err_desc.h"
 #include "gw_cfg_storage.h"
+// coolgreen terminal communication addition
+#include "terminal.h"
+#include "api.h"
+//#include "ruuvi_endpoint_ca_uart.h"
 
 #define LOG_LOCAL_LEVEL LOG_LEVEL_INFO
 #include "log.h"
@@ -110,6 +114,113 @@ mqtt_create_full_topic(
         snprintf(p_full_topic->buf, sizeof(p_full_topic->buf), "%s", p_topic_str);
     }
 }
+
+// coolgreen addition THIS FUNCTION WILL NOT BE USED 
+/*void
+sendMessageToCoprocessor(char *topic_event , char *message)
+{
+  // coolgreen fill in here
+  //topic_event ruuvi/DD:F0:9C:43:09:16/commands/F2:F5:0E:C4:1E:28
+  //message LED_ON
+  
+  // coolgreen here
+  //re_ca_uart_encode(buffer, buf_len, payload);
+  LOG_INFO("Sending data to coprocessor");
+  //uint8_t data[] = {0x01, 0x02, 0x03};
+  uint8_t data[] = {0xCA, 0x15, 0x21, 0xF2, 0xF5, 0x0E, 0xC4, 0x1E, 0x28, 0x2C, 0x0B, 0x2C, 0x2C, 0x02, 0x01, 0x04, 0x05,0x06, 0x07,
+      0x08, 0x09, 0xFF, 0x0B, 0x2C, 0x3D, 0xD1, 0x0A};
+
+  // OK, so the LED control should make the data 0xCA, whatever the length is, the LED command
+  // then I should make the function to get the MACID
+
+  // So CA is the command intiation
+  // 0x15 is the length (needs to be recalculated, didn't change it, so it is still 21)
+  // The command is send to nus, 0x21
+  // MACID = F2:F5:0E:C4:1E:28
+  // 2C is separator
+  // MSG_LEN = 11 (0x0B)
+  // 2C is separator
+  // 2C is command again (hopefully not interpreted as separator)
+  // MSG = 0x02,0x01, 0x04,0x05, 0x06, 0x07, 0x08, 0x09, 0xFF, 0x0B (not 0x0A because it is end of line)
+  // 2C is separator
+  // CRC
+  // EOL 0x0A    
+
+  char dummy_buffer[17];
+  char *macid_str = strrchr(topic_event, '/') + 1; // Get last subtopic
+  // Convert MACID from string to hex values and store in uart_payload.params.adv.adv
+  for (int i = 0; i < 6; i++) {
+      char hex_pair[3]; // To hold each pair of hex characters
+      hex_pair[0] = macid_str[i * 3];
+      hex_pair[1] = macid_str[i * 3 + 1];
+      hex_pair[2] = '\0'; // Null-terminate the string
+      dummy_buffer[i] = (uint8_t)strtol(hex_pair, NULL, 16);
+  }
+  // OK, so I have the MACID (whose length is always 6) and now I need
+  // to get in the message length (that is at least 11) and the message itself
+  // which all together cannot be longer than 31, so the maximum message length is 24 bytes
+  // I will convert
+  // So the message will not be LED_ON, it will be 0x2CFF010000000000000000
+  // So that I can get the length, command, and payload from it
+  // so maybe the length is always 11, source, destination, command, 8 bytes of payload
+  // so if it is a LED command (2C) I will only check the first byte of the payload
+  // turn on if it is 01, off if it is 00
+  // So I will not even ask for the length, it will be 0x0B
+  // then the string 2CFF010000000000000000 will be decoded into the rest of the adv
+  // so let's assume we got that string, length 11, and we will put it nex to the mac
+  // with another for
+  for (int i = 0; i < 11; i++) {
+      char hex_pair[3]; // To hold each pair of hex characters
+      hex_pair[0] = message[i * 2];
+      hex_pair[1] = message[i * 2 + 1];
+      hex_pair[2] = '\0'; // Null-terminate the string
+      dummy_buffer[i + 6] = (uint8_t)strtol(hex_pair, NULL, 16);
+  }
+ 
+  char values_str[3 * 17 + 1]; // Assuming each byte takes up to 3 characters (2 characters + space)
+  // Store values in the string
+  int index = 0;
+  for (int i = 0; i < 17; i++) {
+      index += snprintf(values_str + index, sizeof(values_str) - index, "%02X ", (unsigned int)dummy_buffer[i]);
+  }
+
+  // Print the values string
+  LOG_INFO("Contents of dummy_buffer: %s\n", values_str);
+
+  LOG_INFO("Contents of dummy_buffer:");
+    for (int i = 0; i < 17; i++) {
+      LOG_INFO("%02X ", (unsigned int)dummy_buffer[i]);
+  }
+ 
+  //uint8_t size = sizeof(data);
+  
+  //int res = terminal_send_msg(data,size);
+  // coolgreen fill in here
+  // OK so here in the dummy_buffer I have the MACID (6 bytes) and the message (11 bytes)
+  // I need to make the rest of the message then
+  // So I need a function, like the encode nus or something like that
+  // So I cannot use re_ca_uart_encode_send_msg_to_nus because it is static
+  // I need to tall the encode that will call it
+  re_status_t res;
+  // so here I have to make the payload and the encode will put it into the buffer
+  // coolgreen come back here
+
+  re_ca_uart_payload_t uart_payload = { 0 };
+  uint8_t              data[BUFFER_PAYLOAD_SIZE];
+  uint8_t              data_length;
+
+  print_dbgmsgnoarg("Enter\n");
+
+  uart_payload.cmd = (re_ca_uart_cmd_t)cmd;
+
+  res =  re_ca_uart_encode (buffer, buf_len, payload)
+
+
+  LOG_INFO("Sent data, got response res=%d",res);
+    
+}
+*/
+
 
 bool
 mqtt_publish_adv(const adv_report_t* const p_adv, const bool flag_use_timestamps, const time_t timestamp)
@@ -378,6 +489,7 @@ mqtt_event_handler(esp_mqtt_event_handle_t h_event)
             const mac_address_str_t *mac_address = gw_cfg_get_nrf52_mac_addr();
             sprintf(topic, "ruuvi/%s/commands/#", mac_address->str_buf);
             LOG_INFO("Subscribing to topics: %s", topic);
+            esp_mqtt_client_subscribe(p_mqtt_protected_data->p_mqtt_client, topic, 1);
 
             if (!fw_update_mark_app_valid_cancel_rollback())
             {
@@ -427,6 +539,11 @@ mqtt_event_handler(esp_mqtt_event_handle_t h_event)
             LOG_INFO("Received message on topic: %s", topic_event);
             LOG_INFO("Message content: %s", message);
 
+            // OK, so here I will write to the console asking to turn on the LED in case the
+            // message is that of course
+            //sendMessageToCoprocessor(topic_event,message);
+            int res = api_send_to_nus(topic_event, message);
+            LOG_INFO("Got res from API: %d", res);
             break;
 
         case MQTT_EVENT_ERROR:
@@ -741,3 +858,4 @@ mqtt_app_get_error_message(void)
     mqtt_mutex_unlock(&p_mqtt_data);
     return str_buf;
 }
+
