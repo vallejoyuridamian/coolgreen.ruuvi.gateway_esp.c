@@ -12,7 +12,7 @@
 	url = https://github.com/ruuvi/ruuvi.boards.c.git
 [submodule "components/ruuvi.comm_tester.c"]
 	path = components/ruuvi.comm_tester.c
-	url = https://github.com/ruuvi/ruuvi.comm_tester.c.git
+	url = https://github.com/vallejoyuridamian/coolgreen.ruuvi.comm_tester.c
 [submodule "components/libSWD-esp32"]
 	path = components/libSWD-esp32
 	url = https://github.com/ruuvi/libSWD-esp32.git
